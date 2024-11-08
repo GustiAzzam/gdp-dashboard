@@ -1,151 +1,57 @@
 import streamlit as st
 import pandas as pd
-import math
-from pathlib import Path
+import numpy as np
 
-# Set the title and favicon that appear in the Browser's tab bar.
-st.set_page_config(
-    page_title='GDP dashboard',
-    page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
-)
+st.title("Tugas 2 :blue - [Pemrograman Sistem ]")
+st.title("Gusti Muhammad Akbar Abdullah Azzam - :blue[22220032]")
 
-# -----------------------------------------------------------------------------
-# Declare some useful functions.
+# Load data
+df_sales = pd.read_csv("Network_dataset_23.csv", encoding="iso-8859-1")
 
-@st.cache_data
-def get_gdp_data():
-    """Grab GDP data from a CSV file.
+# Clean column name issue
+df_sales.rename(columns={'ï»¿ts': 'timestamp'}, inplace=True)
 
-    This uses caching to avoid having to read the file every time. If we were
-    reading from an HTTP endpoint instead of a file, it's a good idea to set
-    a maximum age to the cache with the TTL argument: @st.cache_data(ttl='1d')
-    """
+# Check if DataFrame is empty
+if df_sales.empty:
+    st.error("DataFrame is empty! Please check the CSV file.")
+else:
+    st.success("DataFrame loaded successfully.")
+    st.write("Available columns are:", df_sales.columns.tolist())
 
-    # Instead of a CSV on disk, you could read from an HTTP endpoint here too.
-    DATA_FILENAME = Path(__file__).parent/'data/gdp_data.csv'
-    raw_gdp_df = pd.read_csv(DATA_FILENAME)
+    # Display the dataset table
+    st.write("### Dataset")
+    st.dataframe(df_sales)
 
-    MIN_YEAR = 1960
-    MAX_YEAR = 2022
+    # Ensure the timestamp column is numeric (if it's in Unix format)
+    df_sales['timestamp'] = pd.to_numeric(df_sales['timestamp'], errors='coerce')
 
-    # The data above has columns like:
-    # - Country Name
-    # - Country Code
-    # - [Stuff I don't care about]
-    # - GDP for 1960
-    # - GDP for 1961
-    # - GDP for 1962
-    # - ...
-    # - GDP for 2022
-    #
-    # ...but I want this instead:
-    # - Country Name
-    # - Country Code
-    # - Year
-    # - GDP
-    #
-    # So let's pivot all those year-columns into two: Year and GDP
-    gdp_df = raw_gdp_df.melt(
-        ['Country Code'],
-        [str(x) for x in range(MIN_YEAR, MAX_YEAR + 1)],
-        'Year',
-        'GDP',
-    )
+    # Convert timestamp to a readable date format (assuming it's in Unix time)
+    df_sales['ORDERDATE'] = pd.to_datetime(df_sales['timestamp'], unit='s')
 
-    # Convert years from string to integers
-    gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
+    # Convert 'src_bytes' to numeric, coerce errors, and fill NaNs with 0
+    df_sales['src_bytes'] = pd.to_numeric(df_sales['src_bytes'], errors='coerce').fillna(0)
 
-    return gdp_df
+    # Filter out rows where 'type' is 'mitm'
+    df_sales_filtered = df_sales[df_sales['type'] != 'mitm']
 
-gdp_df = get_gdp_data()
+    # Get unique traffic types (substitute for product lines)
+    try:
+        traffic_types = df_sales_filtered["type"].unique()
+    except KeyError:
+        st.error("The column 'type' does not exist in the DataFrame.")
+        st.write("Available columns are:", df_sales_filtered.columns.tolist())
+    else:
+        # Create a DataFrame with ORDERDATE as index and traffic types as columns
+        df_traffic_sales = df_sales_filtered.pivot_table(values='src_bytes', index='ORDERDATE', columns='type', fill_value=0)
 
-# -----------------------------------------------------------------------------
-# Draw the actual page
+        # Calculate total src_bytes per traffic type
+        total_src_bytes_per_type = df_sales_filtered.groupby('type')['src_bytes'].sum()
 
-# Set the title that appears at the top of the page.
-'''
-# :earth_americas: GDP dashboard
+        # Display the total sums table
+        st.write("### Total src_bytes per Traffic Type (Class)")
+        st.dataframe(total_src_bytes_per_type)
 
-Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website. As you'll
-notice, the data only goes to 2022 right now, and datapoints for certain years are often missing.
-But it's otherwise a great (and did I mention _free_?) source of data.
-'''
-
-# Add some spacing
-''
-''
-
-min_value = gdp_df['Year'].min()
-max_value = gdp_df['Year'].max()
-
-from_year, to_year = st.slider(
-    'Which years are you interested in?',
-    min_value=min_value,
-    max_value=max_value,
-    value=[min_value, max_value])
-
-countries = gdp_df['Country Code'].unique()
-
-if not len(countries):
-    st.warning("Select at least one country")
-
-selected_countries = st.multiselect(
-    'Which countries would you like to view?',
-    countries,
-    ['DEU', 'FRA', 'GBR', 'BRA', 'MEX', 'JPN'])
-
-''
-''
-''
-
-# Filter the data
-filtered_gdp_df = gdp_df[
-    (gdp_df['Country Code'].isin(selected_countries))
-    & (gdp_df['Year'] <= to_year)
-    & (from_year <= gdp_df['Year'])
-]
-
-st.header('GDP over time', divider='gray')
-
-''
-
-st.line_chart(
-    filtered_gdp_df,
-    x='Year',
-    y='GDP',
-    color='Country Code',
-)
-
-''
-''
-
-
-first_year = gdp_df[gdp_df['Year'] == from_year]
-last_year = gdp_df[gdp_df['Year'] == to_year]
-
-st.header(f'GDP in {to_year}', divider='gray')
-
-''
-
-cols = st.columns(4)
-
-for i, country in enumerate(selected_countries):
-    col = cols[i % len(cols)]
-
-    with col:
-        first_gdp = first_year[first_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-        last_gdp = last_year[last_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-
-        if math.isnan(first_gdp):
-            growth = 'n/a'
-            delta_color = 'off'
-        else:
-            growth = f'{last_gdp / first_gdp:,.2f}x'
-            delta_color = 'normal'
-
-        st.metric(
-            label=f'{country} GDP',
-            value=f'{last_gdp:,.0f}B',
-            delta=growth,
-            delta_color=delta_color
-        )
+        # Plot the bar chart for total src_bytes per type
+        st.title("Bar Chart with Total Sum")
+        st.bar_chart(total_src_bytes_per_type)
+        st.markdown("---")
