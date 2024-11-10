@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-st.title("Tugas 2 :blue - [Pemrograman Sistem ]")
+st.title("Tugas 1 :blue - [Pemrograman Sistem ]")
 st.title("Gusti Muhammad Akbar Abdullah Azzam - :blue[22220032]")
 
 # Load data
