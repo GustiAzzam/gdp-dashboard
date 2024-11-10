@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 # Load data
-file_path = 'Network_dataset_23.csv'
+file_path = 'Network_dataset_23_reduced.csv'
 data = pd.read_csv(file_path)
 
 # Ensure 'src_bytes' and 'dst_bytes' columns are numeric, coercing errors
