@@ -1,40 +1,22 @@
 import streamlit as st
 import pandas as pd
 
-st.title(":blue[Daniel Ndara Palako]")
-st.write("22220044")
+# Load data
+file_path = "Network_dataset_23.csv"
+data = pd.read_csv(file_path)
 
-# Memuat dataset IoT Botnet
-df_botnet = pd.read_csv("Network_dataset_23.csv")
+# Display data in Streamlit
+st.title("Network Intrusion Dataset Viewer")
+st.write("### Data Table")
+st.dataframe(data)
 
-# Konversi kolom 'stime' (Unix timestamp) ke format datetime
-df_botnet["stime"] = pd.to_datetime(df_botnet["stime"], unit='s', errors='coerce')
+# Choose columns to display in charts
+st.write("### Bar Chart of Source and Destination Bytes")
+bar_chart_data = data[['src_bytes', 'dst_bytes']].sum()
+st.bar_chart(bar_chart_data)
 
-# Menghapus baris yang memiliki tanggal tidak valid atau nilai yang hilang
-df_botnet = df_botnet.dropna(subset=["stime"])
-
-# Tampilkan kolom dataset dan beberapa baris pertama untuk verifikasi
-st.write("Kolom Dataset:", df_botnet.columns)
-st.write(df_botnet.head())
-
-# Pilih kolom numerik yang relevan untuk analisis (misalnya, 'pkts', 'bytes', 'srate', 'drate')
-numerical_columns = ['pkts', 'bytes', 'srate', 'drate']
-
-# Buat tabel pivot dengan 'stime' sebagai index dan agregasi kolom numerik
-df_botnet_analysis = df_botnet.pivot_table(index='stime', values=numerical_columns, aggfunc='sum')
-
-# Tampilkan grafik area
-st.title("Grafik Area")
-st.area_chart(df_botnet_analysis)
-
-st.markdown("---")
-
-# Tampilkan grafik batang
-st.title("Grafik Batang")
-st.bar_chart(df_botnet_analysis)
-
-st.markdown("---")
-
-# Tampilkan grafik garis
-st.title("Grafik Garis")
-st.line_chart(df_botnet_analysis)
+st.write("### Area Chart of Source Bytes over Time")
+# Convert 'ts' to datetime if needed and plot
+data['ts'] = pd.to_datetime(data['ts'], unit='s')
+area_chart_data = data.set_index('ts')['src_bytes']
+st.area_chart(area_chart_data)
